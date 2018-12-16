@@ -53,7 +53,7 @@ Dựa và kết quả trả về từ `checksec`, ta thấy có `canary`, `NX en
     Ta sẽ giải quyết như sau: Do hàm nhận giá trị input bằng hàm `scanf`, copy buffer từ stack -> bss bằng hàm `strcpy`, nên nếu ta nhập buffer có chứa null byte, thì ta vừa có thể ghi đè canary trong stack, vừa sửa được canary trong bss mà không làm hỏng `stdin` và `stdout`.
 + ROP.
 
-    Ở hàm `Login` có 1 lỗi buffer over flow khi nhập password, nhờ đó mình có thể ghi đè 2 bytes của save pc address. Chỉ với 2 bytes ghi đè được thì rất khó để có thể làm gì đó được, nên mình sẽ tìm gadget để chuyển `sp` cho trỏ đến 1 buffer mình control được data trong bss hoặc data segment.
+    Ở hàm `Login` có 1 lỗi buffer over flow khi nhập password, nhờ đó mình có thể ghi đè 2 bytes của save pc address. Chỉ với 2 bytes ghi đè được thì rất khó để có thể làm gì đó được, nên mình sẽ tìm gadget để chuyển `sp` cho trỏ đến 1 buffer control được data trong bss hoặc data segment.
     Gadget đó là `mov sp, r7 ; pop {r7, pc}`, với việc control `r7` = bss/data address ta có thể thay đổi giá trị `sp`. Address mình chọn là address của ssid string nằm trong data segment vì ta có thể control 40 bytes bắt đầu từ địa chỉ chỉ của ssid string bằng 2 hàm `Set SSID` và `Set Wireless Password`.
     
     Giờ tiếp theo mình cần tìm các gadget khác có thể control giá trị các thanh ghi `r0`, `r1`, `r2`. Dưới đây là các gadget mình tìm được:
@@ -61,13 +61,13 @@ Dựa và kết quả trả về từ `checksec`, ta thấy có `canary`, `NX en
     mov r2, sb ; mov r1, r8 ; mov r0, r7 ; blx r3
     pop.w {r3, r4, r5, r6, r7, r8, sb, pc}
     ```
-    Nhưng chỉ với 40 bytes buffer, mình vẫn không thể làm được điều gì hay ho, không kể `sp` đang trỏ đến vùng nằm ngay sau vùng readonly data, nên khi gọi hàm, push thanh ghi vào, `sp` bị giảm xuống, khi `sp` giảm đến vùng readonly, chương trình sẽ crash :(. Sau khi thử khá nhiều cách, mình cũng tìm ra 1 cách đi đúng hướng, đó là gọi hàm `read` vì hàm `read` khá đơn giản nên sẽ không cần push quá nhiều thứ vào stack. Và destination mình nhắm tới là mảng MAC address nằm ở bss. Nhưng trước khi read, mình cần chuyển `sp` trỏ vào destination trước, vì mình muốn sau khi read xong, ROP có thể thực thi tiếp tại destination  đó được luôn. 
+    Nhưng chỉ với 40 bytes buffer, mình vẫn không thể làm được điều gì hay ho, không kể `sp` đang trỏ đến vùng nằm ngay sau vùng readonly data, nên khi gọi hàm, push thanh ghi vào, `sp` bị giảm xuống, khi `sp` giảm đến vùng readonly, chương trình sẽ crash :(. Sau khi thử khá nhiều cách, mình cũng tìm ra 1 cách đi đúng hướng, đó là gọi hàm `read` vì hàm `read` khá đơn giản nên sẽ không cần push quá nhiều thứ vào stack. Và destination mình nhắm tới là mảng MAC string nằm ở bss. Nhưng trước khi read, cần chuyển `sp` trỏ vào destination trước, vì mình muốn sau khi read xong, ROP có thể thực thi tiếp tại destination đó được luôn. 
     
     1 lưu ý nữa là mình read tận 800 bytes luôn và lại dịch `sp` lên 700 bytes vì để tránh việc khi gọi hàm mà `sp` chạm phải readonly segment. Rồi, đến đây thì có vẻ dễ hơn rồi. Giờ mình có thể gọi `puts` để leak libc addr sau đó gọi `read` thêm 1 lần nữa để ret2libc.
     
-    Code xong, local chạy ầm ầm, lên remote thì tạch . Thật là magic.  Sau 1 hồi debug đi debug lại, vẫn không biết mình sai ở đâu, mình đành tâm linh 1 chút, add thêm 1 vài dword null vào ROP của mình (xem poc để biết thêm chi tiết :v), thì thật magic nó chạy :v, lấy flag thôi. Mình nghĩ rất có thể do mình debug bằng `qemu` nên có sự sai khác 1 chút với việc chạy trên remote server  với kiến trúc arm xịn.
+    Code xong, local chạy ầm ầm, lên remote thì tạch. Thật là magic. Sau 1 hồi debug đi debug lại, vẫn không biết mình sai ở đâu, mình đành tâm linh 1 chút, add thêm 1 vài dword null vào ROP của (xem poc để biết thêm chi tiết :v), thì thật magic nó chạy :v, lấy flag thôi. Mình nghĩ rất có thể do debug bằng `qemu` nên có sự sai khác 1 chút với việc chạy trên remote server với kiến trúc arm xịn.
     
-    Dưới đây là poc của mình.
+    Dưới đây là poc.
 
     [exploit.py](./exploit.py)
     ```
