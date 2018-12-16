@@ -70,7 +70,8 @@ Dựa và kết quả trả về từ `checksec`, ta thấy có `canary`, `NX en
     Code xong cách 2, local vẫn chạy ầm ầm, lên remote vẫn tạch . Thật là magic.  Sau 1 hồi debug đi debug lại, vẫn không biết mình sai ở đâu, mình đành tâm linh 1 chút, add thêm 1 vài dword null vào ROP của mình (xem poc để biết thêm chi tiết :v), thì thật magic nó chạy :v và lấy flag thôi. Sau khi thi xong mình nghĩ rất có thể lý do mà code lần đầu của mình tạch rất có thể cũng là vì lý do  này, mình thử lại, và đúng thế thật sau khi add thêm pad, code chạy :v. Mình nghĩ rất có thể do mình debug bằng `qemu` nên có sự sai khác 1 chút với việc chạy trên remote server  với kiến trúc arm xịn.
     
     Dưới đây là poc của mình.
-    [exploit.py]: ./exploit.py
+
+    [exploit.py](./exploit.py)
     ```
     $ ./exploit.py remote
     [+] Opening connection to 42.117.243.201 on port 9999: Done
